@@ -1,20 +1,395 @@
 'use client';
-import { useEffect, useState } from 'react';
-import Image from 'next/image';
-import { Activity, Bell, ChartNoAxesColumn, Check, ChevronRight, CircleHelp, HeartHandshake, Home, LockKeyhole, LogOut, Menu, Plus, Settings, ShieldCheck, Users } from 'lucide-react';
-import { emptyStore, STORE_KEY, todayKey, type Role, type Store, type Update } from '@/lib/model';
 
-const PEOPLE = ['Laura', 'Camila', 'Andrés', 'Valentina', 'Santiago'];
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  UserProfile,
+  USERS,
+  SquizzeStore,
+  SYNC_CHANNEL,
+  STORE_KEY,
+} from '@/lib/model';
+import { loadStore, saveStore } from '@/lib/store';
+import { TeamsLogin } from './TeamsLogin';
+import { CoordinatorSetup } from './CoordinatorSetup';
+import { CoordinatorFeed } from './CoordinatorFeed';
+import { CollaboratorFeed } from './CollaboratorFeed';
+import { AnalysisView } from './AnalysisView';
+import { TeamView } from './TeamView';
+import { SettingsView } from './SettingsView';
+import { UsabilityTestPanel } from './UsabilityTestPanel';
+import { SquizzeLogo } from './SquizzeLogo';
+import {
+  LayoutGrid,
+  BarChart3,
+  Settings,
+  Users as UsersIcon,
+  LogOut,
+  Bell,
+} from 'lucide-react';
+
 export function SquizzeApp() {
-  const [role,setRole]=useState<Role>('Laura'),[person,setPerson]=useState('Laura'),[tab,setTab]=useState('Feed'),[store,setStore]=useState<Store>(emptyStore),[logged,setLogged]=useState(false),[confirmed,setConfirmed]=useState(false),[fifth,setFifth]=useState(false),[toast,setToast]=useState('');
-  useEffect(()=>{const sync=()=>{try{const value=localStorage.getItem(STORE_KEY);if(value)setStore(JSON.parse(value))}catch{}};sync();window.addEventListener('storage',sync);return()=>window.removeEventListener('storage',sync)},[]);
-  const save=(next:Store)=>{setStore(next);localStorage.setItem(STORE_KEY,JSON.stringify(next))};
-  const today=todayKey(),mine=store.squishes.filter(x=>x.user===person&&x.day===today).length,teamToday=store.squishes.filter(x=>x.day===today),complete=PEOPLE.filter(p=>teamToday.filter(x=>x.user===p).length>=5).length;
-  const flash=(s:string)=>{setToast(s);setTimeout(()=>setToast(''),2500)};
-  const register=()=>{if(mine>=5)return;const next={...store,squishes:[...store.squishes,{id:crypto.randomUUID(),user:person as Role,day:today,createdAt:new Date().toISOString()}]};save(next);setConfirmed(false);if(mine===4){setFifth(true);const notice:Update={id:crypto.randomUUID(),title:'Una persona del equipo llegó a cinco squishazos',body:'Una persona alcanzó el límite diario. La identidad permanece privada.',createdAt:new Date().toISOString(),read:false};save({...next,updates:[notice,...next.updates]})}else flash('Squishazo registrado')};
-  const share=()=>{const notice:Update={id:crypto.randomUUID(),title:'Una persona del equipo llegó a cinco squishazos',body:'Señal compartida de manera anónima.',createdAt:new Date().toISOString(),read:false};save({...store,sentAnonymous:[...store.sentAnonymous,today],updates:[notice,...store.updates]});setFifth(false);flash('Señal enviada al coordinador')};
-  const adjustment=()=>{const u:Update={id:crypto.randomUUID(),title:'Bloque de concentración',body:'Hoy reservaremos un bloque sin reuniones para avanzar en tareas prioritarias.',createdAt:new Date().toISOString(),read:false};save({...store,updates:[u,...store.updates]});flash('Ajuste enviado al equipo')};
-  if(!logged)return <main className="login-page"><section className="login-panel"><Image src="/squizze-logo.png" alt="Squizze" width={420} height={108} priority className="login-logo"/><div className="login-card"><span className="eyebrow">BIENVENIDA A TU ESPACIO</span><h1>Tu ritmo también cuenta.</h1><p>Una señal sencilla para cuidar el bienestar de tu equipo.</p><button className="teams-button" onClick={()=>setLogged(true)}><span className="ms-logo">▦</span> Iniciar sesión con Teams</button><div className="demo-login"><small>PRUEBA DE USABILIDAD</small><label>Vista<select value={role} onChange={e=>setRole(e.target.value as Role)}><option value="Laura">Colaboradora</option><option value="Miguel">Coordinador</option></select></label><label>Participante<select value={person} onChange={e=>setPerson(e.target.value)}>{PEOPLE.map(x=><option key={x}>{x}</option>)}</select></label></div><small className="secure"><ShieldCheck/> Acceso de demostración · No conecta una cuenta real de Microsoft</small></div></section></main>;
-  return <main className="workspace"><aside className="sidebar"><Image src="/squizze-logo.png" alt="Squizze" width={200} height={52} className="sidebar-logo"/><nav>{[['Feed',Home],['Análisis',ChartNoAxesColumn],['Configuración',Settings],['Equipo',Users]].map(([label,Icon]:any)=><button className={'side-link '+(tab===label?'active':'')} onClick={()=>setTab(label)} key={label}><Icon/>{label}</button>)}</nav><div className="side-profile"><span>{role==='Miguel'?'M':person[0]}</span><div><b>{role==='Miguel'?'Miguel':person}</b><small>{role==='Miguel'?'Coordinador':'Colaboradora'}</small></div><button onClick={()=>setLogged(false)} aria-label="Cerrar sesión"><LogOut/></button></div></aside><section className="dashboard"><header className="dash-header"><div><b>Buenos días, {role==='Miguel'?'Miguel':person}</b><small>¿Cómo va tu ritmo hoy?</small></div><div className="day-meter"><i/><i/><i/><i/><i/><small>{new Date().toLocaleDateString('es-CO',{day:'numeric',month:'short'})}</small></div><Bell/></header>{role==='Miguel'?<><div className="page-title"><small>VISTA DE COORDINADOR</small><h1>Tu equipo, en equilibrio.</h1><p>Una visión colectiva para actuar con cuidado.</p></div><div className="coordinator-grid"><article className="soft-card team-card"><div className="card-head"><div><h2>Equipo Creativo</h2><small>{PEOPLE.length} integrantes · Activo</small></div><button className="small-link" onClick={()=>setTab('Equipo')}>Editar equipo</button></div><div className="member-list">{PEOPLE.map((p,i)=><div className="member" key={p}><span>{p[0]}</span><small>{p}</small></div>)}</div></article><article className="soft-card state-card"><Users/><b>{complete}/{PEOPLE.length}</b><small>integrantes llegaron a 5</small><span>ESTADO DEL EQUIPO</span><strong>{complete===PEOPLE.length?'Necesita ajustes':complete?'Atención':'Estable'}</strong></article><article className="soft-card tally-card"><div><Activity/><span>Squishazos hoy</span></div><b>{teamToday.length}</b><small>señales en el equipo</small></article><article className="soft-card tally-card"><div><Bell/><span>Alertas</span></div><b>{store.updates.length}</b><small>notificaciones para revisar</small></article><article className="soft-card report-card"><h2>Reporte semanal</h2><TeamBars records={store.squishes}/><div className="weekday"><span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span></div></article><article className="soft-card recommendations"><h2>Recomendaciones</h2><p>• Distribuye las tareas prioritarias.</p><p>• Protege un bloque de concentración sin reuniones.</p><p>• Si el equipo llega al límite, conversa sobre ajustes posibles.</p><button className="warm-button" onClick={adjustment}>Comunicar un ajuste</button></article></div><div className="alert-area"><h2>Alertas del equipo</h2>{store.updates.length?store.updates.map(u=><div className="alert-item" key={u.id}><Bell/><div><b>{u.title}</b><small>{u.body}</small></div></div>):<p className="empty-note">Sin alertas pendientes por ahora.</p>}{complete===PEOPLE.length&&<div className="alert-item high"><Activity/><div><b>Todo el equipo llegó a cinco squishazos</b><small>{PEOPLE.length} de {PEOPLE.length} personas alcanzaron el límite de hoy.</small></div></div>}</div></>:<><div className="page-title"><small>VISTA DE COLABORADORA · EQUIPO CREATIVO</small><h1>¿Cómo va tu ritmo?</h1><p>Registra una señal cuando tú lo necesites durante tu jornada.</p></div><div className="collaborator-grid"><article className="soft-card personal-card"><div className="personal-top"><div><small>TU RITMO HOY</small><h2>{mine>=5?'Necesita ajustes':mine>=2?'Exigente pero manejable':'Ritmo sostenible'}</h2></div><div className="personal-count">{mine}<small>/5</small></div></div><p>Aprieta tu Squishy si sientes que sube el ritmo por interrupciones, cambios de prioridad o pendientes acumulados.</p><div className="count-dots">{[0,1,2,3,4].map(i=><i key={i} className={i<mine?'done':''}/>)}</div><button className="warm-button full" disabled={mine>=5} onClick={()=>setConfirmed(true)}><Plus/>{mine>=5?'Ya registraste 5 hoy':'Apretar Squishy'}</button><small className="anytime">Puedes registrar un squishazo en cualquier momento.</small></article><article className="soft-card personal-week"><h2>Mi semana</h2><p>Tu resumen es privado y solo tú puedes verlo.</p><TeamBars records={store.squishes.filter(x=>x.user===person)}/><button className="small-link" onClick={()=>setTab('Análisis')}>Ver mi resumen <ChevronRight/></button></article></div><section className="alert-area"><h2>Avisos del equipo</h2>{store.updates.filter(x=>x.title.includes('ajuste')||x.title.includes('Bloque')).map(u=><div className="alert-item" key={u.id}><HeartHandshake/><div><b>{u.title}</b><small>{u.body}</small></div></div>)}</section></>}{tab==='Equipo'&&<section className="soft-card setup-card"><h2>Tu equipo · {PEOPLE.length} integrantes</h2>{PEOPLE.map(p=><div className="member-row" key={p}>{p}<span>{store.squishes.filter(x=>x.user===p&&x.day===today).length}/5 señales</span></div>)}<p>Los detalles personales solo aparecen en la cuenta de cada colaborador.</p></section>}{tab==='Análisis'&&<section className="soft-card setup-card"><h2>{role==='Miguel'?'Tendencia semanal del equipo':'Mi semana'}</h2><TeamBars records={role==='Miguel'?store.squishes:store.squishes.filter(x=>x.user===person)}/><small>{role==='Miguel'?'La tendencia se muestra para un mínimo de tres personas.':'Resumen privado visible solo para ti.'}</small></section>}</section>{confirmed&&<div className="modal-backdrop"><section className="confirm-box"><button className="modal-x" onClick={()=>setConfirmed(false)}>×</button><div className="squishy-icon">S</div><small>REGISTRO VOLUNTARIO</small><h2>¿Registrar un squishazo?</h2><p>Solo se guardará si confirmas. Esta señal es personal y privada.</p><div className="modal-actions"><button onClick={()=>setConfirmed(false)}>Cancelar</button><button className="confirm-button" onClick={register}>Confirmar</button></div></section></div>}{fifth&&<div className="modal-backdrop"><section className="confirm-box"><div className="squishy-icon">S</div><small>NIVEL ACTUAL · NECESITA AJUSTES</small><h2>Ya registraste 5 squishazos hoy</h2><p>¿Qué ayudaría? Comparte una señal anónima, pide una recomendación personal u omite.</p><button className="choice" onClick={()=>{setFifth(false);flash('Prueba una pausa de 10 minutos lejos de la pantalla.')}}>Darme una recomendación para mí <ChevronRight/></button><button className="choice" onClick={share}>Enviar mi señal al equipo <ChevronRight/></button><button className="cancel-link" onClick={()=>setFifth(false)}>Omitir</button></section></div>}{toast&&<div className="toast"><Check/>{toast}</div>}</main>
+  const [store, setStore] = useState<SquizzeStore>(loadStore);
+  const [currentUser, setCurrentUser] = useState<UserProfile>(USERS[0]); // Miguel by default, can switch to Laura
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<string>('Feed');
+  const [isSettingUpCoordinator, setIsSettingUpCoordinator] = useState<boolean>(false);
+
+  // Cross-tab / Multi-device real-time sync
+  useEffect(() => {
+    // Initial sync
+    setStore(loadStore());
+
+    // Storage event for other tabs
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === STORE_KEY) {
+        setStore(loadStore());
+      }
+    };
+
+    // BroadcastChannel for instant same-browser cross-tab sync
+    let bc: BroadcastChannel | null = null;
+    if (typeof window !== 'undefined' && typeof window.BroadcastChannel !== 'undefined') {
+      bc = new BroadcastChannel(SYNC_CHANNEL);
+      bc.onmessage = (event) => {
+        if (event.data?.type === 'STORE_UPDATED') {
+          setStore(loadStore());
+        }
+      };
+    }
+
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      if (bc) bc.close();
+    };
+  }, []);
+
+  const handleUpdateStore = useCallback((nextStore: SquizzeStore) => {
+    setStore(nextStore);
+  }, []);
+
+  const handleLoginSuccess = (user: UserProfile) => {
+    setCurrentUser(user);
+    setIsLoggedIn(true);
+    setActiveTab('Feed');
+
+    // If Miguel logs in and hasn't finished setup, show setup flow
+    if (user.roleType === 'coordinator' && !store.coordinatorSetupDone) {
+      setIsSettingUpCoordinator(true);
+    } else {
+      setIsSettingUpCoordinator(false);
+    }
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setIsSettingUpCoordinator(false);
+    setActiveTab('Feed');
+  };
+
+  const handleCompleteCoordinatorSetup = (selectedIds: string[]) => {
+    const nextStore: SquizzeStore = {
+      ...store,
+      selectedMemberIds: selectedIds,
+      coordinatorSetupDone: true,
+      coordinatorAcceptedPrivacy: true,
+    };
+    saveStore(nextStore);
+    setStore(nextStore);
+    setIsSettingUpCoordinator(false);
+    setActiveTab('Feed');
+  };
+
+  const handleSwitchUserFromPanel = (user: UserProfile) => {
+    setCurrentUser(user);
+    setIsLoggedIn(true);
+    setIsSettingUpCoordinator(false);
+  };
+
+  // 1. Unauthenticated: Show Teams Login Screen (Image 5)
+  if (!isLoggedIn) {
+    return (
+      <>
+        <TeamsLogin
+          onLoginSuccess={handleLoginSuccess}
+          currentUser={currentUser}
+          onUserSelect={setCurrentUser}
+        />
+        <UsabilityTestPanel
+          currentUser={currentUser}
+          onSwitchUser={handleSwitchUserFromPanel}
+          store={store}
+          onUpdateStore={handleUpdateStore}
+          onNavigateTab={setActiveTab}
+          onSimulateError={() => {}}
+        />
+      </>
+    );
+  }
+
+  // 2. Coordinator Onboarding / Setup Flow (Images 6, 7, 8, 9)
+  if (currentUser.roleType === 'coordinator' && isSettingUpCoordinator) {
+    return (
+      <>
+        <CoordinatorSetup
+          currentUser={currentUser}
+          initialSelectedMemberIds={store.selectedMemberIds}
+          onCompleteSetup={handleCompleteCoordinatorSetup}
+          onLogout={handleLogout}
+        />
+        <UsabilityTestPanel
+          currentUser={currentUser}
+          onSwitchUser={handleSwitchUserFromPanel}
+          store={store}
+          onUpdateStore={handleUpdateStore}
+          onNavigateTab={setActiveTab}
+          onSimulateError={() => {}}
+        />
+      </>
+    );
+  }
+
+  // 3. Tab views when NOT on Feed
+  if (activeTab === 'Análisis') {
+    return (
+      <div className="app-workspace">
+        <aside className="app-sidebar">
+          <div className="sidebar-logo-container">
+            <SquizzeLogo variant="light" size="sm" />
+          </div>
+          <nav className="sidebar-nav">
+            <button className="nav-item" onClick={() => setActiveTab('Feed')}>
+              <LayoutGrid size={16} />
+              <span>Feed</span>
+            </button>
+            <button className="nav-item active" onClick={() => setActiveTab('Análisis')}>
+              <BarChart3 size={16} />
+              <span>Análisis</span>
+            </button>
+            <button className="nav-item" onClick={() => setActiveTab('Configuración')}>
+              <Settings size={16} />
+              <span>Configuración</span>
+            </button>
+            <button className="nav-item" onClick={() => setActiveTab('Equipo')}>
+              <UsersIcon size={16} />
+              <span>Equipo</span>
+            </button>
+          </nav>
+          <div className="sidebar-footer-profile">
+            <div className="profile-pill-chip">
+              <span className="profile-avatar-circle" style={{ background: currentUser.avatarBg }}>
+                {currentUser.avatar}
+              </span>
+              <div className="profile-text-wrap">
+                <span className="profile-user-name">{currentUser.name}</span>
+                <span className="profile-user-role">
+                  {currentUser.roleType === 'coordinator' ? 'Coordinador' : 'Colaboradora'}
+                </span>
+              </div>
+              <button className="sidebar-logout-icon" title="Cerrar sesión" onClick={handleLogout}>
+                <LogOut size={14} />
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        <main className="app-main-pane">
+          <header className="app-top-header">
+            <div className="header-greeting-wrap">
+              <h2 className="header-greeting-title">Buenos días, {currentUser.name}</h2>
+              <span className="header-greeting-sub">¿Cómo va tu ritmo hoy?</span>
+            </div>
+          </header>
+          <AnalysisView currentUser={currentUser} store={store} />
+        </main>
+
+        <UsabilityTestPanel
+          currentUser={currentUser}
+          onSwitchUser={handleSwitchUserFromPanel}
+          store={store}
+          onUpdateStore={handleUpdateStore}
+          onNavigateTab={setActiveTab}
+          onSimulateError={() => {}}
+        />
+      </div>
+    );
+  }
+
+  if (activeTab === 'Equipo') {
+    return (
+      <div className="app-workspace">
+        <aside className="app-sidebar">
+          <div className="sidebar-logo-container">
+            <SquizzeLogo variant="light" size="sm" />
+          </div>
+          <nav className="sidebar-nav">
+            <button className="nav-item" onClick={() => setActiveTab('Feed')}>
+              <LayoutGrid size={16} />
+              <span>Feed</span>
+            </button>
+            <button className="nav-item" onClick={() => setActiveTab('Análisis')}>
+              <BarChart3 size={16} />
+              <span>Análisis</span>
+            </button>
+            <button className="nav-item" onClick={() => setActiveTab('Configuración')}>
+              <Settings size={16} />
+              <span>Configuración</span>
+            </button>
+            <button className="nav-item active" onClick={() => setActiveTab('Equipo')}>
+              <UsersIcon size={16} />
+              <span>Equipo</span>
+            </button>
+          </nav>
+          <div className="sidebar-footer-profile">
+            <div className="profile-pill-chip">
+              <span className="profile-avatar-circle" style={{ background: currentUser.avatarBg }}>
+                {currentUser.avatar}
+              </span>
+              <div className="profile-text-wrap">
+                <span className="profile-user-name">{currentUser.name}</span>
+                <span className="profile-user-role">
+                  {currentUser.roleType === 'coordinator' ? 'Coordinador' : 'Colaboradora'}
+                </span>
+              </div>
+              <button className="sidebar-logout-icon" title="Cerrar sesión" onClick={handleLogout}>
+                <LogOut size={14} />
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        <main className="app-main-pane">
+          <header className="app-top-header">
+            <div className="header-greeting-wrap">
+              <h2 className="header-greeting-title">Buenos días, {currentUser.name}</h2>
+              <span className="header-greeting-sub">¿Cómo va tu ritmo hoy?</span>
+            </div>
+          </header>
+          <TeamView
+            currentUser={currentUser}
+            store={store}
+            onEditTeamClick={() => setIsSettingUpCoordinator(true)}
+          />
+        </main>
+
+        <UsabilityTestPanel
+          currentUser={currentUser}
+          onSwitchUser={handleSwitchUserFromPanel}
+          store={store}
+          onUpdateStore={handleUpdateStore}
+          onNavigateTab={setActiveTab}
+          onSimulateError={() => {}}
+        />
+      </div>
+    );
+  }
+
+  if (activeTab === 'Configuración') {
+    return (
+      <div className="app-workspace">
+        <aside className="app-sidebar">
+          <div className="sidebar-logo-container">
+            <SquizzeLogo variant="light" size="sm" />
+          </div>
+          <nav className="sidebar-nav">
+            <button className="nav-item" onClick={() => setActiveTab('Feed')}>
+              <LayoutGrid size={16} />
+              <span>Feed</span>
+            </button>
+            <button className="nav-item" onClick={() => setActiveTab('Análisis')}>
+              <BarChart3 size={16} />
+              <span>Análisis</span>
+            </button>
+            <button className="nav-item active" onClick={() => setActiveTab('Configuración')}>
+              <Settings size={16} />
+              <span>Configuración</span>
+            </button>
+            <button className="nav-item" onClick={() => setActiveTab('Equipo')}>
+              <UsersIcon size={16} />
+              <span>Equipo</span>
+            </button>
+          </nav>
+          <div className="sidebar-footer-profile">
+            <div className="profile-pill-chip">
+              <span className="profile-avatar-circle" style={{ background: currentUser.avatarBg }}>
+                {currentUser.avatar}
+              </span>
+              <div className="profile-text-wrap">
+                <span className="profile-user-name">{currentUser.name}</span>
+                <span className="profile-user-role">
+                  {currentUser.roleType === 'coordinator' ? 'Coordinador' : 'Colaboradora'}
+                </span>
+              </div>
+              <button className="sidebar-logout-icon" title="Cerrar sesión" onClick={handleLogout}>
+                <LogOut size={14} />
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        <main className="app-main-pane">
+          <header className="app-top-header">
+            <div className="header-greeting-wrap">
+              <h2 className="header-greeting-title">Buenos días, {currentUser.name}</h2>
+              <span className="header-greeting-sub">¿Cómo va tu ritmo hoy?</span>
+            </div>
+          </header>
+          <SettingsView
+            currentUser={currentUser}
+            store={store}
+            onReopenSetup={() => setIsSettingUpCoordinator(true)}
+            onResetTodayCounts={() => {
+              const next = { ...store, records: store.records.filter((r) => r.day !== 'today') };
+              saveStore(next);
+              setStore(next);
+            }}
+          />
+        </main>
+
+        <UsabilityTestPanel
+          currentUser={currentUser}
+          onSwitchUser={handleSwitchUserFromPanel}
+          store={store}
+          onUpdateStore={handleUpdateStore}
+          onNavigateTab={setActiveTab}
+          onSimulateError={() => {}}
+        />
+      </div>
+    );
+  }
+
+  // 4. FEED PRINCIPAL
+  return (
+    <>
+      {currentUser.roleType === 'coordinator' ? (
+        <CoordinatorFeed
+          currentUser={currentUser}
+          store={store}
+          onUpdateStore={handleUpdateStore}
+          onNavigateTab={setActiveTab}
+          activeTab={activeTab}
+          onLogout={handleLogout}
+        />
+      ) : (
+        <CollaboratorFeed
+          currentUser={currentUser}
+          store={store}
+          onUpdateStore={handleUpdateStore}
+          onNavigateTab={setActiveTab}
+          activeTab={activeTab}
+          onLogout={handleLogout}
+        />
+      )}
+
+      {/* Floating Usability Testing Tool */}
+      <UsabilityTestPanel
+        currentUser={currentUser}
+        onSwitchUser={handleSwitchUserFromPanel}
+        store={store}
+        onUpdateStore={handleUpdateStore}
+        onNavigateTab={setActiveTab}
+        onSimulateError={() => {}}
+      />
+    </>
+  );
 }
-function TeamBars({records}:{records:Store['squishes']}){return <div className="team-bars">{['Lun','Mar','Mié','Jue','Vie'].map((d,i)=><div key={d}><i style={{height:`${Math.min(100,12+records.filter(x=>new Date(x.day+'T12:00:00').getDay()===(i+1)%7).length*16)}%`}}/><small>{d}</small></div>)}</div>}
